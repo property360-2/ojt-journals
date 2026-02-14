@@ -15,38 +15,97 @@
             margin-bottom: 2rem;
         }
         .profile-info { flex: 1; }
-        .journal-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        .journal-list-view {
-            max-height: calc(100vh - 300px);
-            overflow-y: auto;
-        }
-        .journal-card {
-            padding: 1rem;
-            margin-bottom: 1rem;
-            cursor: pointer;
-            border-left: 4px solid transparent;
-            transition: all 0.2s;
-        }
-        .journal-card.active {
+        .calendar-container {
+            margin-top: 1.5rem;
             background: var(--glass-bg);
-            border-left-color: var(--primary);
+            border-radius: 1rem;
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
         }
-        .journal-card.reviewed { border-left-color: var(--success); }
-        .journal-card.pending { border-left-color: var(--warning); }
-        
-        .review-panel {
-            position: sticky;
-            top: 100px;
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
         }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            text-align: center;
+        }
+        .calendar-day-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            padding-bottom: 1rem;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.75rem;
+            font-size: 0.95rem;
+            cursor: default;
+            position: relative;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            min-height: 80px;
+        }
+        .calendar-day.has-journal {
+            cursor: pointer;
+            border-color: var(--glass-border);
+        }
+        .calendar-day.has-journal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .calendar-day.reviewed {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .calendar-day.pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        .calendar-day.missing {
+            background: rgba(239, 68, 68, 0.05);
+            color: var(--danger);
+            border: 1px dashed rgba(239, 68, 68, 0.3);
+        }
+        .calendar-day.today {
+            font-weight: 800;
+            text-decoration: underline;
+        }
+        .calendar-day.other-month {
+            opacity: 0.3;
+        }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-top: 4px;
+        }
+        .dot-reviewed { background: var(--success); }
+        .dot-pending { background: var(--warning); }
+        .dot-missing { background: var(--danger); }
     </style>
 </head>
 <body>
     <nav class="nav">
-        <a href="admin-students.html" class="logo"><i class="fas fa-arrow-left" style="font-size: 1rem;"></i> OJT<span>JOURNAL</span></a>
+        <a href="admin-dashboard.html" class="logo">
+            <img src="../assets/richwell-colleges-logo.webp" alt="Logo" style="height: 40px;">
+            <span style="font-size: 0.7rem; color: var(--secondary); margin-left: 0.5rem; background: rgba(236, 72, 153, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">ADMIN</span>
+        </a>
+        <div class="nav-links">
+            <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i> Overview</a>
+            <a href="admin-students.html" class="nav-link"><i class="fas fa-users"></i> Students</a>
+        </div>
         <div>
             <button id="logout-btn" class="btn btn-outline" style="padding: 0.5rem 1rem;">Logout</button>
         </div>
@@ -64,42 +123,36 @@
             </div>
         </div>
 
-        <div class="journal-grid">
-            <div class="journal-list-view">
-                <h3>Journal Timeline</h3>
-                <div id="journal-list" style="margin-top: 1.5rem;">
-                    <p style="text-align: center; color: var(--text-muted); padding: 2rem;">Fetching journals...</p>
+        <div class="calendar-container glass-card">
+            <div class="calendar-header">
+                <h2 id="calendar-month-year">Month Year</h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="prev-month" class="btn btn-outline" style="padding: 0.5rem 1rem;"><i class="fas fa-chevron-left"></i></button>
+                    <button id="next-month" class="btn btn-outline" style="padding: 0.5rem 1rem;"><i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
-
-            <div class="review-panel">
-                <div id="empty-state" class="glass-card" style="text-align: center; padding: 4rem;">
-                    <i class="fas fa-book-open" style="font-size: 3rem; color: var(--glass-border); margin-bottom: 1rem;"></i>
-                    <p style="color: var(--text-muted);">Select a journal entry from the timeline to review.</p>
+            <div class="calendar-grid">
+                <div class="calendar-day-label">SUN</div>
+                <div class="calendar-day-label">MON</div>
+                <div class="calendar-day-label">TUE</div>
+                <div class="calendar-day-label">WED</div>
+                <div class="calendar-day-label">THU</div>
+                <div class="calendar-day-label">FRI</div>
+                <div class="calendar-day-label">SAT</div>
+            </div>
+            <div id="calendar-days" class="calendar-grid">
+                <!-- Days will be generated here -->
+            </div>
+            
+            <div style="margin-top: 2rem; display: flex; gap: 1.5rem; justify-content: center; font-size: 0.85rem; color: var(--text-muted);">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <div class="status-dot dot-reviewed"></div> Reviewed
                 </div>
-
-                <div id="review-card" class="glass-card" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
-                        <div>
-                            <h3 id="review-date">Date</h3>
-                            <span id="review-week" style="font-size: 0.8rem; color: var(--text-muted);">Week 0</span>
-                        </div>
-                        <span id="review-status" class="badge">Status</span>
-                    </div>
-
-                    <div id="review-content" style="background: var(--background); padding: 1.5rem; border-radius: 0.5rem; border: 1px solid var(--border); white-space: pre-wrap; margin-bottom: 2rem; line-height: 1.8;">
-                        Journal content goes here...
-                    </div>
-
-                    <form id="review-form">
-                        <div class="input-group">
-                            <label>Admin Remarks / Feedback</label>
-                            <textarea id="review-remarks" rows="4" placeholder="Add feedback for the student..."></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">
-                            <i class="fas fa-check-double"></i> Mark as Reviewed
-                        </button>
-                    </form>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <div class="status-dot dot-pending"></div> Pending
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <div class="status-dot dot-missing"></div> Missing
                 </div>
             </div>
         </div>
@@ -108,7 +161,7 @@
     <script type="module">
         import { db } from '../system-script/firebase-core.js';
         import { logoutUser, guardPage } from '../system-script/auth.js';
-        import { getStudentJournals } from '../system-script/journal-utils.js';
+        import { getStudentProgress } from '../system-script/journal-utils.js';
         import { reviewJournal } from '../system-script/admin-utils.js';
         import { showToast } from '../system-script/ui-utils.js';
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
@@ -118,107 +171,118 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         let studentUid = urlParams.get('uid') || sessionStorage.getItem('selectedStudentUid');
-        const targetDate = urlParams.get('date'); // Optional date to auto-select
         
         let journals = [];
-        let currentJournalId = null;
+        let missingDates = [];
+        let viewDate = new Date();
 
         async function init() {
             if (!studentUid) { window.location.href = 'admin-students.html'; return; }
 
-            const userDoc = await getDoc(doc(db, "users", studentUid));
-            if (!userDoc.exists()) { alert('Student not found.'); return; }
-            
-            const userData = userDoc.data();
-            document.getElementById('stu-name').textContent = `${userData.firstName} ${userData.lastName}`;
-            document.getElementById('stu-detail').textContent = `${userData.studentId} • ${userData.section} • ${userData.company}`;
+            try {
+                const progress = await getStudentProgress(studentUid);
+                const userData = progress.userData;
+                
+                document.getElementById('stu-name').textContent = `${userData.firstName} ${userData.lastName}`;
+                document.getElementById('stu-detail').textContent = `${userData.studentId} • ${userData.section} • ${userData.company}`;
 
-            journals = await getStudentJournals(studentUid);
-            renderTimeline();
-            updateCompliance(journals);
-
-            if (targetDate) {
-                const target = journals.find(j => j.date === targetDate);
-                if (target) selectJournal(target.id);
+                journals = progress.journals;
+                missingDates = progress.missingDates;
+                
+                renderCalendar();
+                updateCompliance(progress);
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to load student data.', 'error');
             }
         }
 
-        function renderTimeline() {
-            const list = document.getElementById('journal-list');
-            if (journals.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No journal entries found for this student.</p>';
-                return;
+        function renderCalendar() {
+            const daysContainer = document.getElementById('calendar-days');
+            const monthYearLabel = document.getElementById('calendar-month-year');
+            
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            
+            monthYearLabel.textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(viewDate);
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+            
+            let html = '';
+            
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                html += `<div class="calendar-day other-month">${prevMonthDays - i}</div>`;
             }
-
-            list.innerHTML = journals.map(j => `
-                <div class="glass-card journal-card ${j.reviewed ? 'reviewed' : 'pending'} ${j.id === currentJournalId ? 'active' : ''}" 
-                     onclick="window.selectJournal('${j.id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-weight: 600;">${new Date(j.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">Week ${j.week}</div>
-                        </div>
-                        <i class="fas ${j.reviewed ? 'fa-check-circle' : 'fa-clock'}" 
-                           style="color: ${j.reviewed ? 'var(--success)' : 'var(--warning)'};"></i>
+            
+            // Current month days
+            const today = new Date().toISOString().split('T')[0];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const journal = journals.find(j => j.date === dateStr);
+                const isMissing = missingDates.includes(dateStr);
+                
+                let classes = 'calendar-day';
+                if (dateStr === today) classes += ' today';
+                
+                let statusContent = '';
+                if (journal) {
+                    classes += journal.reviewed ? ' reviewed has-journal' : ' pending has-journal';
+                    statusContent = `<div class="status-dot ${journal.reviewed ? 'dot-reviewed' : 'dot-pending'}"></div>`;
+                } else if (isMissing) {
+                    classes += ' missing';
+                    statusContent = `<div class="status-dot dot-missing"></div>`;
+                }
+                
+                html += `
+                    <div class="${classes}" ${journal ? `onclick="window.selectJournal('${journal.id}', '${journal.date}')"` : ''}>
+                        ${day}
+                        ${statusContent}
                     </div>
-                </div>
-            `).join('');
+                `;
+            }
+            
+            // Next month days
+            const totalCells = html.split('calendar-day').length - 1;
+            const remaining = 42 - totalCells;
+            for (let i = 1; i <= remaining; i++) {
+                html += `<div class="calendar-day other-month">${i}</div>`;
+            }
+            
+            daysContainer.innerHTML = html;
         }
 
-        window.selectJournal = (id) => {
-            currentJournalId = id;
-            const journal = journals.find(j => j.id === id);
-            
-            document.getElementById('empty-state').style.display = 'none';
-            document.getElementById('review-card').style.display = 'block';
-            
-            document.getElementById('review-date').textContent = new Date(journal.date).toLocaleDateString(undefined, { dateStyle: 'long' });
-            document.getElementById('review-week').textContent = `Week ${journal.week}`;
-            document.getElementById('review-content').textContent = journal.content;
-            document.getElementById('review-remarks').value = journal.remarks || '';
-            
-            const status = document.getElementById('review-status');
-            status.textContent = journal.reviewed ? 'Reviewed' : 'Pending Review';
-            status.className = `badge ${journal.reviewed ? 'badge-success' : 'badge-warning'}`;
-
-            renderTimeline();
+        document.getElementById('prev-month').onclick = () => {
+            viewDate.setMonth(viewDate.getMonth() - 1);
+            renderCalendar();
         };
 
-        const reviewForm = document.getElementById('review-form');
-        reviewForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const remarks = document.getElementById('review-remarks').value;
-            
-            try {
-                const btn = reviewForm.querySelector('button');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        document.getElementById('next-month').onclick = () => {
+            viewDate.setMonth(viewDate.getMonth() + 1);
+            renderCalendar();
+        };
 
-                await reviewJournal(currentJournalId, remarks);
-                
-                // Refresh data
-                journals = await getStudentJournals(studentUid);
-                renderTimeline();
-                selectJournal(currentJournalId);
-                showToast('Journal reviewed successfully!', 'success');
-            } catch (error) {
-                showToast('Error: ' + error.message, 'error');
-            } finally {
-                reviewForm.querySelector('button').disabled = false;
-                reviewForm.querySelector('button').innerHTML = '<i class="fas fa-check-double"></i> Mark as Reviewed';
-            }
-        });
+        window.selectJournal = (id, date) => {
+            window.location.href = `admin-journal-review.html?uid=${studentUid}&id=${id}&date=${date}`;
+        };
 
-        function updateCompliance(journals) {
-            // Simplified logic: Count journals for the current week
-            const today = new Date().toISOString().split('T')[0];
-            const currentWeek = journals.filter(j => j.week === journals[0]?.week); // Assuming sorted
-            const count = currentWeek.length;
+        function updateCompliance(progress) {
+            const total = progress.totalSubmitted;
+            const missing = progress.totalMissing;
             
             const badge = document.getElementById('stu-compliance');
-            if (count >= 5) { badge.textContent = 'Passed'; badge.className = 'badge badge-success'; }
-            else if (count > 0) { badge.textContent = 'Incomplete'; badge.className = 'badge badge-warning'; }
-            else { badge.textContent = 'No Submissions'; badge.className = 'badge badge-danger'; }
+            if (missing === 0 && total > 0) {
+                badge.textContent = 'On Track';
+                badge.className = 'badge badge-success';
+            } else if (missing > 0) {
+                badge.textContent = `${missing} Missing`;
+                badge.className = 'badge badge-danger';
+            } else {
+                badge.textContent = 'No Duty Yet';
+                badge.className = 'badge badge-outline';
+            }
         }
 
         init();

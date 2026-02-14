@@ -44,13 +44,34 @@
         .journal-item:hover {
             transform: scale(1.01);
         }
+        .journal-item {
+            animation: slideUp 0.4s ease-out forwards;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .skeleton-text {
+            color: transparent !important;
+            background: #eee;
+            border-radius: 4px;
+            display: inline-block;
+            min-width: 50px;
+            animation: skeleton-loading 1.5s infinite linear;
+        }
     </style>
 </head>
 <body>
     <nav class="nav">
-        <a href="#" class="logo">OJT<span>JOURNAL</span></a>
-        <div style="display: flex; gap: 1rem; align-items: center;">
-            <span id="user-name" style="color: var(--text-muted); font-size: 0.9rem;">Loading...</span>
+        <a href="dashboard.html" class="logo">
+            <img src="../assets/richwell-colleges-logo.webp" alt="Logo" style="height: 40px;">
+        </a>
+        <div class="nav-links">
+            <a href="dashboard.html" class="nav-link active"><i class="fas fa-home"></i> Home</a>
+            <a href="journals.html" class="nav-link"><i class="fas fa-book"></i> Journals</a>
+            <a href="profile.html" class="nav-link"><i class="fas fa-user-circle"></i> Profile</a>
+        </div>
+        <div>
             <button id="logout-btn" class="btn btn-outline" style="padding: 0.5rem 1rem;">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
@@ -64,53 +85,61 @@
         </header>
 
         <div class="stats-grid">
-            <div class="glass-card stat-card">
+            <div class="glass-card stat-card animate-fade" style="animation-delay: 0.1s;">
                 <div class="stat-icon" style="background: rgba(99, 102, 241, 0.2); color: var(--primary);">
                     <i class="fas fa-book"></i>
                 </div>
                 <div>
-                    <label>Total Journals</label>
-                    <h3 id="stat-total">0</h3>
+                    <label>Submissions</label>
+                    <h3 id="stat-total" class="skeleton-text">0</h3>
                 </div>
             </div>
-            <div class="glass-card stat-card">
+            <div class="glass-card stat-card animate-fade" style="animation-delay: 0.2s;">
                 <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <div>
                     <label>Reviewed</label>
-                    <h3 id="stat-reviewed">0</h3>
+                    <h3 id="stat-reviewed" class="skeleton-text">0</h3>
                 </div>
             </div>
-            <div class="glass-card stat-card">
+            <div class="glass-card stat-card animate-fade" style="animation-delay: 0.3s;">
                 <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">
                     <i class="fas fa-calendar-week"></i>
                 </div>
                 <div>
                     <label>Current Week</label>
-                    <h3 id="stat-week">Week 0</h3>
+                    <h3 id="stat-week" class="skeleton-text">Week 0</h3>
+                </div>
+            </div>
+            <div id="missing-card" class="glass-card stat-card animate-fade" style="animation-delay: 0.4s;">
+                <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2); color: var(--danger);">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div>
+                    <label>Missing journals</label>
+                    <h3 id="stat-missing" class="skeleton-text">0</h3>
                 </div>
             </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2>Recent Journals</h2>
-            <a href="journal.html" class="btn btn-primary">
-                <i class="fas fa-plus"></i> New Entry
-            </a>
-        </div>
-
-        <div class="glass-card">
-            <div id="journal-container" class="journal-list">
-                <p style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading journals...</p>
+        <div id="quote-container" class="glass-card animate-fade" style="animation-delay: 0.4s; text-align: center; padding: 2rem;">
+            <div id="quote-skeleton">
+                <div class="skeleton" style="height: 20px; width: 80%; margin: 0 auto 1rem;"></div>
+                <div class="skeleton" style="height: 15px; width: 30%; margin: 0 auto;"></div>
+            </div>
+            <div id="quote-content" style="display: none;">
+                <p id="quote-text" style="font-size: 1.25rem; font-style: italic; color: var(--text); margin-bottom: 0.75rem; font-family: 'Outfit', sans-serif;"></p>
+                <p id="quote-author" style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;"></p>
             </div>
         </div>
+    </div>
     </div>
 
     <script type="module">
         import { auth, db } from '../system-script/firebase-core.js';
         import { logoutUser, guardPage } from '../system-script/auth.js';
-        import { getStudentJournals, calculateWeekNumber } from '../system-script/journal-utils.js';
+        import { getStudentProgress, calculateWeekNumber } from '../system-script/journal-utils.js';
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
         // Protect page
@@ -125,52 +154,110 @@
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                document.getElementById('user-name').textContent = `${userData.firstName} ${userData.lastName}`;
+                // User name display removed from nav
             }
 
-            // Fetch journals
+            // Fetch progress and journals
             try {
-                const journals = await getStudentJournals(user.uid);
-                renderJournals(journals);
-                updateStats(journals);
+                const progress = await getStudentProgress(user.uid);
+                
+                // Remove skeleton states
+                document.querySelectorAll('.skeleton-text').forEach(el => el.classList.remove('skeleton-text'));
+                
+                renderJournals(progress.journals, progress.missingDates);
+                updateStats(progress);
             } catch (error) {
                 console.error(error);
                 document.getElementById('journal-container').innerHTML = '<p style="color: var(--danger);">Failed to load journals.</p>';
             }
         });
 
-        function renderJournals(journals) {
+        function renderJournals(journals, missingDates) {
             const container = document.getElementById('journal-container');
-            if (journals.length === 0) {
+            
+            // Combine journals and missing dates for a comprehensive list
+            const allEntries = [
+                ...journals.map(j => ({ ...j, type: 'entry' })),
+                ...missingDates.map(date => ({ date, type: 'missing' }))
+            ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (allEntries.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No journal entries yet.</p>';
                 return;
             }
 
-            container.innerHTML = journals.map(j => `
-                <div class="journal-item glass-card" style="padding: 1rem 1.5rem; margin-bottom: 0.5rem; background: var(--background);">
-                    <div>
-                        <div style="font-weight: 600; font-size: 1.1rem;">${new Date(j.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted);">Week ${j.week}</div>
+            container.innerHTML = allEntries.map(item => {
+                if (item.type === 'missing') {
+                    return `
+                        <div class="journal-item glass-card" style="padding: 1rem 1.5rem; margin-bottom: 0.5rem; border: 1px dashed var(--danger); opacity: 0.8;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 1.1rem; color: var(--danger);">${new Date(item.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">Missing Submission</div>
+                            </div>
+                            <div style="display: flex; gap: 1rem; align-items: center;">
+                                <span class="badge badge-danger">Missing</span>
+                                <a href="journal.html?date=${item.date}" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                    Create Now
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="journal-item glass-card" style="padding: 1rem 1.5rem; margin-bottom: 0.5rem; background: var(--background);">
+                        <div>
+                            <div style="font-weight: 600; font-size: 1.1rem;">${new Date(item.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">Week ${item.week} ${!item.submitted ? '(Draft)' : ''}</div>
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <span class="badge ${item.reviewed ? 'badge-success' : (item.submitted ? 'badge-warning' : 'badge-outline')}">
+                                ${item.reviewed ? 'Reviewed' : (item.submitted ? 'Submitted' : 'Draft')}
+                            </span>
+                            <a href="journal.html?date=${item.date}" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <span class="badge ${j.reviewed ? 'badge-success' : 'badge-warning'}">
-                            ${j.reviewed ? 'Reviewed' : 'Pending'}
-                        </span>
-                        <a href="journal.html?date=${j.date}" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
-        function updateStats(journals) {
-            document.getElementById('stat-total').textContent = journals.length;
-            document.getElementById('stat-reviewed').textContent = journals.filter(j => j.reviewed).length;
+        function updateStats(progress) {
+            document.getElementById('stat-total').textContent = progress.totalSubmitted;
+            document.getElementById('stat-reviewed').textContent = progress.journals.filter(j => j.reviewed).length;
+            document.getElementById('stat-missing').textContent = progress.totalMissing;
             
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('stat-week').textContent = `Week ${calculateWeekNumber(today)}`;
+            document.getElementById('stat-week').textContent = `Week ${calculateWeekNumber(today, progress.userData.ojtStart)}`;
+            
+            // Highlight missing card if count > 0
+            const missingCard = document.getElementById('missing-card');
+            if (progress.totalMissing > 0) {
+                missingCard.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                missingCard.style.background = 'rgba(239, 68, 68, 0.05)';
+            } else {
+                missingCard.style.border = 'none';
+                missingCard.style.background = 'var(--glass-bg)';
+            }
         }
+        async function loadRandomQuote() {
+            try {
+                const response = await fetch('../assets/quotes.json');
+                const quotes = await response.json();
+                const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+                
+                document.getElementById('quote-skeleton').style.display = 'none';
+                document.getElementById('quote-content').style.display = 'block';
+                document.getElementById('quote-text').textContent = `“${randomQuote.quote}”`;
+                document.getElementById('quote-author').textContent = `— ${randomQuote.author}`;
+            } catch (error) {
+                console.error("Quote Load Error:", error);
+                document.getElementById('quote-container').style.display = 'none';
+            }
+        }
+
+        loadRandomQuote();
     </script>
 </body>
 </html>

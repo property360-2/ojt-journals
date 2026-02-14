@@ -50,7 +50,14 @@
 </head>
 <body>
     <nav class="nav">
-        <a href="dashboard.html" class="logo"><i class="fas fa-arrow-left" style="font-size: 1rem;"></i> OJT<span>JOURNAL</span></a>
+        <a href="dashboard.html" class="logo">
+            <img src="../assets/richwell-colleges-logo.webp" alt="Logo" style="height: 40px;">
+        </a>
+        <div class="nav-links">
+            <a href="dashboard.html" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="journals.html" class="nav-link"><i class="fas fa-book"></i> Journals</a>
+            <a href="profile.html" class="nav-link active"><i class="fas fa-user-circle"></i> Profile</a>
+        </div>
         <div>
             <button id="logout-btn" class="btn btn-outline" style="padding: 0.5rem 1rem;">Logout</button>
         </div>
@@ -59,7 +66,6 @@
     <div class="container animate-fade">
         <div class="profile-container">
             <div class="profile-header">
-                <div id="profile-initials" class="profile-pic">?</div>
                 <h1 id="full-name">Loading...</h1>
                 <p id="student-id" style="color: var(--text-muted);"></p>
             </div>
@@ -113,7 +119,6 @@
                 const data = userDoc.data();
                 
                 document.getElementById('full-name').textContent = `${data.firstName} ${data.lastName}`;
-                document.getElementById('profile-initials').textContent = `${data.firstName[0]}${data.lastName[0]}`;
                 document.getElementById('student-id').textContent = data.studentId;
                 document.getElementById('section').textContent = data.section;
                 document.getElementById('email').textContent = data.email;

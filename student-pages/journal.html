@@ -32,7 +32,14 @@
 </head>
 <body>
     <nav class="nav">
-        <a href="dashboard.html" class="logo"><i class="fas fa-arrow-left" style="font-size: 1rem;"></i> OJT<span>JOURNAL</span></a>
+        <a href="dashboard.html" class="logo">
+            <img src="../assets/richwell-colleges-logo.webp" alt="Logo" style="height: 40px;">
+        </a>
+        <div class="nav-links">
+            <a href="dashboard.html" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="journals.html" class="nav-link active"><i class="fas fa-book"></i> Journals</a>
+            <a href="profile.html" class="nav-link"><i class="fas fa-user-circle"></i> Profile</a>
+        </div>
         <div>
             <button id="logout-btn" class="btn btn-outline" style="padding: 0.5rem 1rem;">Logout</button>
         </div>
@@ -42,19 +49,41 @@
         <div class="editor-container">
             <header style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
                 <div>
-                    <h1>Journal Entry</h1>
-                    <p id="week-display" style="color: var(--text-muted);">Week 0</p>
+                    <h1 style="margin-bottom: 0.2rem;">Journal Entry</h1>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span id="week-display" class="badge badge-outline">Week 0</span>
+                        <span id="day-display" class="badge badge-outline" style="text-transform: capitalize;">Day</span>
+                    </div>
                 </div>
                 <div style="text-align: right;">
-                    <label>Log Date</label>
-                    <input type="date" id="journal-date" style="width: auto;" required>
+                    <div style="margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.75rem; color: var(--text-muted); display: block;">Posting on (Today)</label>
+                        <span id="current-log-date" style="font-weight: 600; color: var(--primary);">Loading...</span>
+                    </div>
+                    <label style="font-size: 0.75rem; color: var(--text-muted); display: block;">Journal for Date</label>
+                    <input type="date" id="journal-date" style="width: auto; font-weight: 600;" required>
+                    <p style="font-size: 0.65rem; color: var(--danger); margin-top: 0.2rem;">
+                        <i class="fas fa-exclamation-triangle"></i> Turn off VPN for accurate date sync.
+                    </p>
                 </div>
             </header>
+            
+            <div id="journal-skeleton" style="display: none;">
+                <div class="glass-card">
+                    <div class="skeleton" style="height: 20px; width: 40%; margin-bottom: 1rem;"></div>
+                    <div class="skeleton" style="height: 200px; width: 100%; margin-bottom: 1.5rem;"></div>
+                    <div style="display: flex; gap: 1rem;">
+                        <div class="skeleton" style="height: 45px; flex: 1;"></div>
+                        <div class="skeleton" style="height: 45px; flex: 1;"></div>
+                    </div>
+                </div>
+            </div>
 
-            <div id="status-banner" class="status-banner"></div>
+            <div id="editor-main-content">
+                <div id="status-banner" class="status-banner"></div>
 
-            <div class="glass-card">
-                <form id="journal-form">
+                <div class="glass-card">
+                    <form id="journal-form">
                     <div class="input-group">
                         <label for="content">What did you work on today?</label>
                         <textarea id="content" rows="12" placeholder="Write your daily activities here..." required></textarea>
@@ -81,7 +110,7 @@
     <script type="module">
         import { auth } from '../system-script/firebase-core.js';
         import { logoutUser, guardPage } from '../system-script/auth.js';
-        import { saveJournal, getJournal, calculateWeekNumber } from '../system-script/journal-utils.js';
+        import { saveJournal, getJournal, calculateWeekNumber, checkWorkday } from '../system-script/journal-utils.js';
         import { showToast, showConfirm } from '../system-script/ui-utils.js';
 
         guardPage('student');
@@ -100,15 +129,41 @@
         const urlParams = new URLSearchParams(window.location.search);
         const queryDate = urlParams.get('date');
         const today = new Date().toISOString().split('T')[0];
+        document.getElementById('current-log-date').textContent = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         dateInput.value = queryDate || today;
         dateInput.max = today; // Can't log future dates
+
+        const skeleton = document.getElementById('journal-skeleton');
+        const mainContent = document.getElementById('editor-main-content');
 
         async function loadJournalData() {
             const user = auth.currentUser;
             if (!user) return;
 
             const date = dateInput.value;
-            weekDisplay.textContent = `Week ${calculateWeekNumber(date)}`;
+            
+            // Show Loading State
+            skeleton.style.display = 'block';
+            mainContent.style.display = 'none';
+
+            // Fetch User Data for OJT Start Date
+            try {
+                const { db } = await import('../system-script/firebase-core.js');
+                const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js");
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                const userData = userDoc.data();
+                const ojtStart = userData?.ojtStart;
+                const weekNum = calculateWeekNumber(date, ojtStart);
+                const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+                
+                weekDisplay.textContent = `Week ${weekNum}`;
+                document.getElementById('day-display').textContent = dayName;
+            } catch (e) {
+                const weekNum = calculateWeekNumber(date);
+                const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+                weekDisplay.textContent = `Week ${weekNum}`;
+                document.getElementById('day-display').textContent = dayName;
+            }
             
             // Reset UI
             statusBanner.style.display = 'none';
@@ -116,6 +171,18 @@
             contentInput.disabled = false;
             actionButtons.style.display = 'flex';
             contentInput.value = '';
+
+            // Fetch Workday Status
+            const isWorkday = await checkWorkday(date, user.uid);
+            
+            if (!isWorkday) {
+                showStatus('This is not a scheduled OJT workday.', 'badge-outline');
+                contentInput.disabled = true;
+                actionButtons.style.display = 'none';
+                skeleton.style.display = 'none';
+                mainContent.style.display = 'block';
+                return;
+            }
 
             try {
                 const journal = await getJournal(user.uid, date);
@@ -132,10 +199,20 @@
                         }
                     } else if (journal.submitted) {
                         showStatus('Journal submitted. Waiting for review.', 'badge-warning');
+                        contentInput.disabled = true;
+                        actionButtons.style.display = 'none';
+                    } else {
+                        showStatus('You have a saved draft for this day.', 'badge-outline');
                     }
+                } else {
+                    showStatus('No journal found for this day. You may start writing', 'badge-outline');
                 }
             } catch (error) {
                 console.error(error);
+                showToast('Error loading journal data.', 'error');
+            } finally {
+                skeleton.style.display = 'none';
+                mainContent.style.display = 'block';
             }
         }
 

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Journal | Admin</title>
+    <link rel="stylesheet" href="../system-script/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .review-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .journal-content-box {
+            background: var(--background);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="admin-dashboard.html" class="logo">
+            <img src="../assets/richwell-colleges-logo.webp" alt="Logo" style="height: 40px;">
+            <span style="font-size: 0.7rem; color: var(--secondary); margin-left: 0.5rem; background: rgba(236, 72, 153, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">ADMIN</span>
+        </a>
+        <div class="nav-links">
+            <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i> Overview</a>
+            <a href="admin-students.html" class="nav-link active"><i class="fas fa-users"></i> Students</a>
+        </div>
+        <div>
+            <button id="logout-btn" class="btn btn-outline" style="padding: 0.5rem 1rem;">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container animate-fade">
+        <div class="review-container">
+            <a id="back-link" href="#" class="btn btn-outline" style="margin-bottom: 2rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-arrow-left"></i> Back to Timeline
+            </a>
+
+            <div class="glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+                    <div>
+                        <h1 id="review-date" style="margin-bottom: 0.5rem;">Loading...</h1>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <span id="review-week" class="badge badge-outline">Week 0</span>
+                            <span id="review-status" class="badge">Status</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="journal-content" class="journal-content-box">
+                    Loading journal content...
+                </div>
+
+                <form id="review-form">
+                    <div class="input-group">
+                        <label>Admin Remarks / Feedback <span style="font-weight: normal; color: var(--text-muted); font-size: 0.8rem;">(Optional)</span></label>
+                        <textarea id="review-remarks" rows="5" placeholder="Add feedback for the student..."></textarea>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <button type="submit" id="review-btn" class="btn btn-primary" style="flex: 1;">
+                            <i class="fas fa-check-double"></i> Mark as Reviewed
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../system-script/firebase-core.js';
+        import { logoutUser, guardPage } from '../system-script/auth.js';
+        import { getJournal } from '../system-script/journal-utils.js';
+        import { reviewJournal } from '../system-script/admin-utils.js';
+        import { showToast } from '../system-script/ui-utils.js';
+
+        guardPage('admin');
+        document.getElementById('logout-btn').addEventListener('click', logoutUser);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const studentUid = urlParams.get('uid');
+        const journalId = urlParams.get('id');
+        const journalDate = urlParams.get('date');
+
+        if (!studentUid || !journalId) {
+            window.location.href = 'admin-students.html';
+        }
+
+        // Set back link
+        document.getElementById('back-link').href = `admin-student.html?uid=${studentUid}`;
+
+        async function init() {
+            try {
+                const journal = await getJournal(studentUid, journalDate);
+                if (!journal) throw new Error('Journal not found');
+
+                document.getElementById('review-date').textContent = new Date(journal.date).toLocaleDateString(undefined, { dateStyle: 'full' });
+                document.getElementById('review-week').textContent = `Week ${journal.week}`;
+                document.getElementById('journal-content').textContent = journal.content;
+                document.getElementById('review-remarks').value = journal.remarks || '';
+                
+                const status = document.getElementById('review-status');
+                status.textContent = journal.reviewed ? 'Reviewed' : 'Pending Review';
+                status.className = `badge ${journal.reviewed ? 'badge-success' : 'badge-warning'}`;
+
+                // If already reviewed, update button text
+                if (journal.reviewed) {
+                    document.querySelector('#review-form button').innerHTML = '<i class="fas fa-save"></i> Update Remarks';
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('Error loading journal.', 'error');
+            }
+        }
+
+        async function handleReview() {
+            const remarks = document.getElementById('review-remarks').value;
+            try {
+                const reviewBtn = document.getElementById('review-btn');
+                reviewBtn.disabled = true;
+                reviewBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+                await reviewJournal(journalId, remarks, true);
+                showToast('Journal reviewed successfully!', 'success');
+                
+                await init();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('review-btn').disabled = false;
+            }
+        }
+
+        document.getElementById('review-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleReview();
+        });
+
+        init();
+    </script>
+</body>
+</html>
