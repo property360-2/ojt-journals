@@ -33,12 +33,15 @@ export async function loginUser(email, password) {
  * @param {string} role - 'admin' or 'student'.
  */
 export function redirectUserByRole(role) {
+    const isSubfolder = window.location.pathname.includes('/admin-pages/') || window.location.pathname.includes('/student-pages/');
+    const prefix = isSubfolder ? '../' : './';
+
     if (role === 'admin') {
-        window.location.href = '/admin-pages/admin-dashboard.html';
+        window.location.href = prefix + 'admin-pages/admin-dashboard.html';
     } else if (role === 'student') {
-        window.location.href = '/student-pages/dashboard.html';
+        window.location.href = prefix + 'student-pages/dashboard.html';
     } else {
-        window.location.href = '/index.html';
+        window.location.href = prefix + 'index.html';
     }
 }
 
@@ -49,7 +52,8 @@ export function redirectUserByRole(role) {
 export async function logoutUser() {
     try {
         await signOut(auth);
-        window.location.href = '/index.html';
+        const isSubfolder = window.location.pathname.includes('/admin-pages/') || window.location.pathname.includes('/student-pages/');
+        window.location.href = (isSubfolder ? '../' : './') + 'index.html';
     } catch (error) {
         console.error("Logout Error:", error);
     }
@@ -62,10 +66,14 @@ export async function logoutUser() {
  */
 export function guardPage(requiredRole = null) {
     onAuthStateChanged(auth, async (user) => {
+        const path = window.location.pathname;
+        const isIndex = path.endsWith('index.html') || path.endsWith('/') || path.split('/').pop() === '';
+
         if (!user) {
             // Redirect to index if not authenticated and not already on index
-            if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
-                window.location.href = '/index.html';
+            if (!isIndex) {
+                const isSubfolder = path.includes('/admin-pages/') || path.includes('/student-pages/');
+                window.location.href = (isSubfolder ? '../' : './') + 'index.html';
             }
             return;
         }
@@ -80,11 +88,11 @@ export function guardPage(requiredRole = null) {
             }
 
             // If we are on the login page but already logged in, redirect to respective dashboard
-            if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+            if (isIndex) {
                 redirectUserByRole(userData.role);
             }
         } else {
-            // User authenticated but noFirestore record found - likely shouldn't happen
+            // User authenticated but no Firestore record found - likely shouldn't happen
             logoutUser();
         }
     });
